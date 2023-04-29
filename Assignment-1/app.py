@@ -19,39 +19,49 @@ def calculate_charge(entry_time):
 
 @app.route('/entry', methods=['POST'])
 def entry():
-    plate = request.args.get('plate')
-    parking_lot = request.args.get('parkingLot')
-    entry_time = datetime.now()
+    try:
+        plate = request.args.get('plate')
+        parking_lot = request.args.get('parkingLot')
+        entry_time = datetime.now()
 
-    global previous_ticket_id
-    ticket_id = previous_ticket_id
-    previous_ticket_id += 1
+        global previous_ticket_id
+        ticket_id = previous_ticket_id
+        previous_ticket_id += 1
 
-    # if parking lot doesn't already exist add it
-    if parking_lot not in parking_lots:
-        parking_lots[parking_lot] = []
-    # add new value to parking lot
-    parking_lots[parking_lot].append({'plate': plate, 'entry_time': entry_time, 'ticket_id': ticket_id})
+        # if parking lot doesn't already exist add it
+        if parking_lot not in parking_lots:
+            parking_lots[parking_lot] = []
+        # add new value to parking lot
+        parking_lots[parking_lot].append({'plate': plate, 'entry_time': entry_time, 'ticket_id': ticket_id})
 
-    return {
-        'ticketId': ticket_id
-    }
+        return {
+            'ticketId': ticket_id
+        }
+    except Exception as e:
+        return {
+            'error': str(e)
+        }
 
 
 @app.route('/exit', methods=['POST'])
 def exit():
-    ticket_id = int(request.args.get('ticketId'))
-    for parking_lot, entries in parking_lots.items():
-        for entry in entries:
-            if ticket_id == entry['ticket_id']:
-                charge = calculate_charge(entry['entry_time'])
-                time_parked_minutes = int((datetime.now() - entry['entry_time']).total_seconds() / 60)
-                return {
-                    'plate': entry['plate'],
-                    'parkingLot': parking_lot,
-                    'time_parked_minutes': time_parked_minutes,
-                    'charge': charge
-                }
+    try:
+        ticket_id = int(request.args.get('ticketId'))
+        for parking_lot, entries in parking_lots.items():
+            for entry in entries:
+                if ticket_id == entry['ticket_id']:
+                    charge = calculate_charge(entry['entry_time'])
+                    time_parked_minutes = int((datetime.now() - entry['entry_time']).total_seconds() / 60)
+                    return {
+                        'plate': entry['plate'],
+                        'parkingLot': parking_lot,
+                        'time_parked_minutes': time_parked_minutes,
+                        'charge': charge
+                    }
+    finally:
+        return {
+            'error': "Invalid ticketId, please try again."
+        }
 
 
 if __name__ == '__main__':
