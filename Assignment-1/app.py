@@ -4,6 +4,7 @@ from datetime import datetime
 app = Flask(__name__)
 
 parking_lots = {}
+previous_ticket_id = 0
 
 
 def calculate_charge(entry_time):
@@ -21,10 +22,20 @@ def entry():
     plate = request.args.get('plate')
     parking_lot = request.args.get('parkingLot')
     entry_time = datetime.now()
+
+    global previous_ticket_id
+    ticket_id = previous_ticket_id
+    previous_ticket_id += 1
+
+    # if parking lot doesn't already exist add it
     if parking_lot not in parking_lots:
         parking_lots[parking_lot] = []
-    parking_lots[parking_lot].append({'plate': plate, 'entry_time': entry_time})
-    return {'ticketId': len(parking_lots[parking_lot])}
+    # add new value to parking lot
+    parking_lots[parking_lot].append({'plate': plate, 'entry_time': entry_time, 'ticket_id': ticket_id})
+
+    return {
+        'ticketId': ticket_id
+    }
 
 
 @app.route('/exit', methods=['POST'])
@@ -32,9 +43,15 @@ def exit():
     ticket_id = int(request.args.get('ticketId'))
     for parking_lot, entries in parking_lots.items():
         for entry in entries:
-            if len(entries) >= ticket_id and entry['plate'] == entries[ticket_id-1]['plate']:
+            if ticket_id == entry['ticket_id']:
                 charge = calculate_charge(entry['entry_time'])
-                return {'plate': entry['plate'], 'parkingLot': parking_lot, 'time': str(datetime.now() - entry['entry_time']), 'charge': charge}
+                time_parked_minutes = int((datetime.now() - entry['entry_time']).total_seconds() / 60)
+                return {
+                    'plate': entry['plate'],
+                    'parkingLot': parking_lot,
+                    'time_parked_minutes': time_parked_minutes,
+                    'charge': charge
+                }
 
 
 if __name__ == '__main__':
