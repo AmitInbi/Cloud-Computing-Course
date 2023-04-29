@@ -48,13 +48,16 @@ printf "New instance %s @ %s\n" "$INSTANCE_ID" "$PUBLIC_IP"
 # Deploy code to production
 printf "Deploying code to production...\n"
 readonly APP_FILE="app.py"
+scp -i $KEY_PEM -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=60" app.py ubuntu@$PUBLIC_IP:/home/ubuntu/
+
 
 # SSH into the instance and run the necessary commands  to deploy the app
-ssh -T -i "$KEY_PEM" ubuntu@"$PUBLIC_IP" << EOF
-    sudo apt update && sudo apt install -y python3-pip git
-    git clone https://github.com/AmitInbi/Cloud-Computing-Course.git
-    cd Cloud-Computing-Course/Assignment-1
-    pip3 install -r requirements.txt
+printf "########Running this command: ssh -T -i $KEY_PEM ubuntu@$PUBLIC_IP########\n"
+echo "########running ssh command########\n"
+ssh -T -i "$KEY_PEM" -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=10" ubuntu@"$PUBLIC_IP" << EOF
+    sudo apt update 
+    sudo apt install python3-pip -y
+    sudo apt install python3-flask -y
     export FLASK_APP=$APP_FILE
     nohup flask run --host=0.0.0.0
     exit
@@ -65,3 +68,4 @@ printf "Parking lot management app is now available at http://%s:5000\n" "$PUBLI
 
 printf "test that it all worked"
 curl  --retry-connrefused --retry 10 --retry-delay 1  http://$PUBLIC_IP:5000/entry?plate=123-123-123&parkingLot=382
+
