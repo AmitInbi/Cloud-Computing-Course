@@ -1,5 +1,6 @@
 from flask import Flask, request
 from datetime import datetime
+from math import ceil
 
 app = Flask(__name__)
 
@@ -10,8 +11,8 @@ previous_ticket_id = 0
 def calculate_charge(entry_time):
     # calculate difference between entry and exit time in minutes
     diff_minutes = int((datetime.now() - entry_time).total_seconds() / 60)
-    # round up to the nearest 15 minutes
-    rounded_minutes = int((diff_minutes + 14) / 15) * 15
+    # round up to the next 15 minutes
+    rounded_minutes = ceil((diff_minutes + 1) / 15) * 15
     # calculate charge based on hourly rate of $10
     charge = rounded_minutes / 60 * 10
     return charge
@@ -46,7 +47,7 @@ def entry():
 @app.route('/exit', methods=['POST'])
 def exit():
     try:
-        ticket_id = int(request.args.get('ticketId'))
+        ticket_id = request.args.get('ticketId')
         for parking_lot, entries in parking_lots.items():
             for entry in entries:
                 if ticket_id == str(entry['ticket_id']):
@@ -58,10 +59,13 @@ def exit():
                         'time_parked_minutes': time_parked_minutes,
                         'charge': charge
                     }
-    finally:
+    except Exception as e:
         return {
-            'error': "Invalid ticketId, please try again."
+            'error': str(e)
         }
+    return {
+        'error': "Invalid ticketId, please try again."
+    }
 
 
 if __name__ == '__main__':
