@@ -49,7 +49,7 @@ def exit():
         ticket_id = int(request.args.get('ticketId'))
         for parking_lot, entries in parking_lots.items():
             for entry in entries:
-                if ticket_id == entry['ticket_id']:
+                if ticket_id == str(entry['ticket_id']):
                     charge = calculate_charge(entry['entry_time'])
                     time_parked_minutes = int((datetime.now() - entry['entry_time']).total_seconds() / 60)
                     return {

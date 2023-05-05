@@ -24,11 +24,11 @@ printf "My IP: %s\n" "$MY_IP"
 printf "Setting up firewall rules...\n"
 aws ec2 authorize-security-group-ingress --group-name "$SEC_GRP" --port 22 --protocol tcp --cidr "$MY_IP/32"
 # #
-# Setup rule allowing HTTP (port 5000) access to MY_IP only
-aws ec2 authorize-security-group-ingress --group-name "$SEC_GRP" --port 5000 --protocol tcp --cidr "$MY_IP/32"
+# # Setup rule allowing HTTP (port 5000) access to MY_IP only
+# aws ec2 authorize-security-group-ingress --group-name "$SEC_GRP" --port 5000 --protocol tcp --cidr "$MY_IP/32"
 
-# # Setup rule allowing HTTP (port 5000) access to all IPs
-# aws ec2 authorize-security-group-ingress --group-name "$SEC_GRP" --port 5000 --protocol tcp --cidr 0.0.0.0/0
+# Setup rule allowing HTTP (port 5000) access to all IPs
+aws ec2 authorize-security-group-ingress --group-name "$SEC_GRP" --port 5000 --protocol tcp --cidr 0.0.0.0/0
 
 # Set AMI ID and instance type
 readonly UBUNTU_22_04_AMI="ami-007855ac798b5175e"
@@ -57,15 +57,17 @@ echo "########running ssh command########\n"
 ssh -T -i "$KEY_PEM" -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=10" ubuntu@"$PUBLIC_IP" << EOF
     sudo apt update 
     sudo apt install python3-pip -y
-    sudo apt install python3-flask -y
+    sudo pip install Flask
     export FLASK_APP=$APP_FILE
-    nohup flask run --host=0.0.0.0
+    nohup flask run --host 0.0.0.0  &>/dev/null &
     exit
 EOF
 
 # Print out the URL where the app is running
-printf "Parking lot management app is now available at http://%s:5000\n" "$PUBLIC_IP"
+printf "\n"
+printf "##########################################\n"
+printf "########Parking lot management app is now available at http://%s:5000########\n" "$PUBLIC_IP"
+printf "##########################################\n"
 
-printf "test that it all worked"
-curl  --retry-connrefused --retry 10 --retry-delay 1  http://$PUBLIC_IP:5000/entry?plate=123-123-123&parkingLot=382
+
 
