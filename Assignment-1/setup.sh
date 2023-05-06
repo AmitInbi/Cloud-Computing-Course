@@ -52,8 +52,8 @@ scp -i $KEY_PEM -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=60" app.py 
 
 
 # SSH into the instance and run the necessary commands  to deploy the app
+printf "\n"
 printf "########Running this command: ssh -T -i $KEY_PEM ubuntu@$PUBLIC_IP########\n"
-echo "########running ssh command########\n"
 ssh -T -i "$KEY_PEM" -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=10" ubuntu@"$PUBLIC_IP" << EOF
     sudo apt update 
     sudo apt install python3-pip -y
@@ -68,6 +68,3 @@ printf "\n"
 printf "##########################################\n"
 printf "########Parking lot management app is now available at http://%s:5000########\n" "$PUBLIC_IP"
 printf "##########################################\n"
-
-
-

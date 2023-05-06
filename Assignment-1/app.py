@@ -53,6 +53,7 @@ def exit():
                 if ticket_id == str(entry['ticket_id']):
                     charge = calculate_charge(entry['entry_time'])
                     time_parked_minutes = int((datetime.now() - entry['entry_time']).total_seconds() / 60)
+                    entries.remove(entry)
                     return {
                         'plate': entry['plate'],
                         'parkingLot': parking_lot,
