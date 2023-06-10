@@ -47,7 +47,7 @@ printf "New instance %s @ %s\n" "$INSTANCE_ID" "$PUBLIC_IP"
 
 # Deploy code to production
 printf "Deploying code to production...\n"
-readonly APP_FILE="manager-endpoints.py"
+readonly APP_FILE="worker-endpoints.py"
 scp -i $KEY_PEM -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=60" app.py ubuntu@$PUBLIC_IP:/home/ubuntu/
 
 

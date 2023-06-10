@@ -2,8 +2,11 @@ from flask import Flask, request, jsonify
 from threading import Timer
 from queue import Queue
 from datetime import datetime, timedelta
+import subprocess
+
 
 app = Flask(__name__)
+
 
 class EndpointNode:
     def __init__(self):
@@ -38,8 +41,10 @@ class EndpointNode:
             self.timer.cancel()
 
     def spawnWorker(self):
-        # Implement worker spawning logic here
-        pass
+        try:
+            subprocess.run(['bash', 'setup_worker.sh'], check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to spawn worker: {e}")
 
     def TryGetNodeQuota(self):
         if self.numOfWorkers < self.maxNumOfWorkers:
@@ -47,11 +52,14 @@ class EndpointNode:
             return True
         return False
 
-    def enqueueWork(self, text, iterations):
-        self.workQueue.put((text, iterations, datetime.now()))
+    def enqueueWork(self, data, iterations):
+        self.workQueue.put((data, iterations, datetime.now()))
 
     def giveMeWork(self):
         return self.workQueue.get() or None
+
+    def completed(self, result):
+        self.workComplete.append(result)
 
     def pullComplete(self, n):
         results = self.workComplete[:n]
@@ -95,6 +103,15 @@ def give_me_work():
         return jsonify(work_item), 200
     else:
         return jsonify({'message': 'No available work'}), 404
+
+
+@app.route('/sendCompletedWork', methods=['POST'])
+def send_completed_work():
+    # Get the completed work from the request
+    data = request.get_json()
+    result = data['result']
+    endpoint_node.completed(result)
+    return 'Completed work added successfully'
 
 
 if __name__ == '__main__':
