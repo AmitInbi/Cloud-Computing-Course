@@ -48,7 +48,7 @@ printf "New instance %s @ %s\n" "$INSTANCE_ID" "$PUBLIC_IP"
 # Deploy code to production
 printf "Deploying code to production...\n"
 readonly APP_FILE="worker-endpoints.py"
-scp -i $KEY_PEM -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=60" app.py ubuntu@$PUBLIC_IP:/home/ubuntu/
+scp -i $KEY_PEM -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=60" worker-endpoints.py ubuntu@$PUBLIC_IP:/home/ubuntu/
 
 
 # SSH into the instance and run the necessary commands  to deploy the app

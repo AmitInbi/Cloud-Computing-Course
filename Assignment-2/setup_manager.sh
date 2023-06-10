@@ -48,7 +48,7 @@ printf "New instance %s @ %s\n" "$INSTANCE_ID" "$PUBLIC_IP"
 # Deploy code to production
 printf "Deploying code to production...\n"
 readonly APP_FILE="manager-endpoints.py"
-scp -i $KEY_PEM -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=60" app.py ubuntu@$PUBLIC_IP:/home/ubuntu/
+scp -i $KEY_PEM -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=60" . ubuntu@$PUBLIC_IP:/home/ubuntu/
 
 
 # SSH into the instance and run the necessary commands  to deploy the app
@@ -62,4 +62,6 @@ ssh -T -i "$KEY_PEM" -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=10" ub
     nohup flask run --host 0.0.0.0  &>/dev/null &
     exit
 EOF
+
+export PUBLIC_IP
 

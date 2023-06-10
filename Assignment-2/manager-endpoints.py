@@ -3,18 +3,24 @@ from threading import Timer
 from queue import Queue
 from datetime import datetime, timedelta
 import subprocess
+import requests
+import json
 
 
 app = Flask(__name__)
 
 
-class EndpointNode:
+class Manager:
     def __init__(self):
         self.workQueue = Queue()
-        self.workComplete = []
-        self.maxNumOfWorkers = 0
+        self.workComplete = Queue()
+        self.maxNumOfWorkers = 3
         self.numOfWorkers = 0
         self.timer = None
+        self.otherManager = None
+
+    def add_sibling(self, manager):
+        self.otherManager = manager
 
     def timer_10_sec(self):
         if not self.workQueue.empty():
@@ -23,7 +29,7 @@ class EndpointNode:
                 if self.numOfWorkers < self.maxNumOfWorkers:
                     self.spawnWorker()
                 else:
-                    if self.otherNode.TryGetNodeQuota():
+                    if self.otherManager.TryGetNodeQuota():
                         self.maxNumOfWorkers += 1
 
         # Schedule the next execution of timer_10_sec
@@ -59,46 +65,60 @@ class EndpointNode:
         return self.workQueue.get() or None
 
     def completed(self, result):
-        self.workComplete.append(result)
+        self.workComplete.put(result)
 
-    def pullComplete(self, n):
-        results = self.workComplete[:n]
-        if len(results) > 0:
-            return results
-        try:
-            return self.otherNode.pullCompleteInternal(n)
-        except:
-            return []
+    def pullComplete(self, top):
+        result = []
+        for i in range(top):
+            if not self.workComplete.empty():
+                result.append(self.workComplete.get())
+            else:
+                break
+        if len(result) < top:
+            missing_completed = str(top - len(result))
+            url = f"http://{self.otherManager}/pullCompleteInternal?top={missing_completed}"
+            response = requests.get(url)
+            result.append(json.loads(response))
+        return result
+
+    def pullCompleteInternal(self, top):
+        result = []
+        for i in range(top):
+            if not self.workComplete.empty():
+                result.append(self.workComplete.get())
+            else:
+                break
+        return result
 
 
-endpoint_node = EndpointNode()
+this_manager = Manager()
 
 
 @app.route('/enqueue', methods=['PUT'])
 def enqueue():
     iterations = int(request.args.get('iterations'))
     data = request.get_data(as_text=True)
-    endpoint_node.enqueueWork(data, iterations)
+    this_manager.enqueueWork(data, iterations)
     return 'Work enqueued successfully'
 
 
 @app.route('/pullCompleted', methods=['POST'])
 def pull_completed():
     top = int(request.args.get('top'))
-    results = endpoint_node.pullComplete(top)
+    results = this_manager.pullComplete(top)
     return jsonify(results)
 
 
-@app.route('/pullCompleteInternal', methods=['POST'])
+@app.route('/pullCompleteInternal', methods=['GET'])
 def pull_complete_internal():
-    n = request.json.get('n')
-    results = endpoint_node.workComplete[:n]
+    top = int(request.args.get('top'))
+    results = this_manager.pullCompleteInternal(top)
     return jsonify(results)
 
 
 @app.route('/giveMeWork', methods=['GET'])
 def give_me_work():
-    work_item = endpoint_node.giveMeWork()
+    work_item = this_manager.giveMeWork()
     if work_item:
         return jsonify(work_item), 200
     else:
@@ -108,12 +128,17 @@ def give_me_work():
 @app.route('/sendCompletedWork', methods=['POST'])
 def send_completed_work():
     # Get the completed work from the request
-    data = request.get_json()
-    result = data['result']
-    endpoint_node.completed(result)
+    result = request.get_json()
+    this_manager.completed(result)
     return 'Completed work added successfully'
+
+@app.route('/addSibling', methods=['POST'])
+def add_sibling():
+    manager = int(request.args.get('manager'))
+    this_manager.add_sibling(manager)
+    return 'Sibling added successfully'
 
 
 if __name__ == '__main__':
-    endpoint_node.start_timer()
+    this_manager.start_timer()
     app.run()
