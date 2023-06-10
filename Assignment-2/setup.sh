@@ -10,6 +10,8 @@ echo "Running setup_manager.sh - Second Run"
 source ./setup_manager.sh
 IP2="$PUBLIC_IP"
 
+echo "###Both instances are live###\n"
+
 # Add siblings to each manager
 curl -X POST "http://${IP1}/addSibling?manager=${IP2}"
 curl -X POST "http://${IP2}/addSibling?manager=${IP1}"
