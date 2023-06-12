@@ -12,12 +12,12 @@ chmod 400 "$KEY_PEM"
 
 # Setup firewall
 printf "Setting up firewall...\n"
-readonly SEC_GRP="my-sg-$(date +'%N')"
+SEC_GRP="my-sg-$(date +'%N')"
 printf "Security group name: %s\n" "$SEC_GRP"
 aws ec2 create-security-group --group-name "$SEC_GRP" --description "Access my instances"
 
 # Figure out my IP
-readonly MY_IP="$(curl ipinfo.io/ip)"
+MY_IP="$(curl ipinfo.io/ip)"
 printf "My IP: %s\n" "$MY_IP"
 
 # Setup rule allowing SSH access to MY_IP only
@@ -31,23 +31,24 @@ aws ec2 authorize-security-group-ingress --group-name "$SEC_GRP" --port 22 --pro
 aws ec2 authorize-security-group-ingress --group-name "$SEC_GRP" --port 5000 --protocol tcp --cidr 0.0.0.0/0
 
 # Set AMI ID and instance type
-readonly UBUNTU_22_04_AMI="ami-007855ac798b5175e"
-readonly INSTANCE_TYPE="t2.micro"
+UBUNTU_22_04_AMI="ami-007855ac798b5175e"
+INSTANCE_TYPE="t2.micro"
 
 # Create Ubuntu 22.04 instance
 printf "Creating Ubuntu 22.04 instance...\n"
-readonly RUN_INSTANCES=$(aws ec2 run-instances --image-id "$UBUNTU_22_04_AMI" --instance-type "$INSTANCE_TYPE" --key-name "$KEY_NAME" --security-groups "$SEC_GRP")
-readonly INSTANCE_ID=$(echo "$RUN_INSTANCES" | jq -r '.Instances[0].InstanceId')
+RUN_INSTANCES=$(aws ec2 run-instances --image-id "$UBUNTU_22_04_AMI" --instance-type "$INSTANCE_TYPE" --instance-initiated-shutdown-behavior terminate --key-name "$KEY_NAME" --security-groups "$SEC_GRP")
+INSTANCE_ID=$(echo "$RUN_INSTANCES" | jq -r '.Instances[0].InstanceId')
 
 # Wait for instance creation
 printf "Waiting for instance creation...\n"
 aws ec2 wait instance-running --instance-ids "$INSTANCE_ID"
-readonly PUBLIC_IP=$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" | jq -r '.Reservations[0].Instances[0].PublicIpAddress')
+PUBLIC_IP=$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" | jq -r '.Reservations[0].Instances[0].PublicIpAddress')
 printf "New instance %s @ %s\n" "$INSTANCE_ID" "$PUBLIC_IP"
+
 
 # Deploy code to production
 printf "Deploying code to production...\n"
-readonly APP_FILE="worker-endpoints.py"
+APP_FILE="worker-endpoints.py"
 scp -i $KEY_PEM -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=60" worker-endpoints.py ubuntu@$PUBLIC_IP:/home/ubuntu/
 
 
