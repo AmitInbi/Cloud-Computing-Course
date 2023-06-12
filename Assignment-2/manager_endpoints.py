@@ -8,6 +8,7 @@ import json
 
 
 app = Flask(__name__)
+# this_manager = None
 
 
 class Manager:
@@ -18,27 +19,36 @@ class Manager:
         self.numOfWorkers = 0
         self.timer = None
         self.otherManager = None
+        self.lastWorkerSpawned = datetime.now()
 
     def add_sibling(self, manager):
         self.otherManager = manager
 
     def timer_10_sec(self):
+        print("timer tick")
         if not self.workQueue.empty():
             work_item = self.workQueue.queue[0]
-            if datetime.now() - work_item[2] > timedelta(seconds=15):
-                if self.numOfWorkers < self.maxNumOfWorkers:
-                    self.spawnWorker()
-                else:
-                    if self.otherManager.TryGetNodeQuota():
-                        self.maxNumOfWorkers += 1
+            # Check new worker wasn't already spawned in last 3 minutes (average up time)
+            if datetime.now() - self.lastWorkerSpawned > timedelta(seconds=180):
+                # check if work_item wasn't created is in queue for more than 30 seconds
+                # TODO: if datetime.now() - work_item[2] > timedelta(seconds=30):
+                if datetime.now() - work_item[2] > timedelta(seconds=1):
+                    if self.numOfWorkers < self.maxNumOfWorkers:
+                        self.spawnWorker()
+                    else:
+                        if self.otherManager.TryGetNodeQuota():
+                            self.maxNumOfWorkers += 1
 
         # Schedule the next execution of timer_10_sec
-        self.timer = Timer(10, self.timer_10_sec)
+        self.timer = Timer(1, self.timer_10_sec)
+        # TODO: self.timer = Timer(10, self.timer_10_sec)
         self.timer.start()
 
     def start_timer(self):
+        print("timer started")
         # Start the timer initially
-        self.timer = Timer(10, self.timer_10_sec)
+        self.timer = Timer(1, self.timer_10_sec)
+        # TODO: self.timer = Timer(10, self.timer_10_sec)
         self.timer.start()
 
     def stop_timer(self):
@@ -49,6 +59,8 @@ class Manager:
     def spawnWorker(self):
         try:
             subprocess.run(['bash', 'setup_worker.sh'], check=True)
+            # print("spawnWorker")
+            self.lastWorkerSpawned = datetime.now()
         except subprocess.CalledProcessError as e:
             print(f"Failed to spawn worker: {e}")
 
@@ -86,9 +98,6 @@ class Manager:
             else:
                 break
         return result
-
-
-this_manager = Manager()
 
 
 @app.route('/enqueue', methods=['PUT'])
@@ -145,6 +154,6 @@ def try_get_node_quota():
     return False
 
 
-if __name__ == '__main__':
-    this_manager.start_timer()
-    app.run(host='0.0.0.0', port=5000)
+this_manager = Manager()
+this_manager.start_timer()
+app.run(host='0.0.0.0', port=5000, debug=True)

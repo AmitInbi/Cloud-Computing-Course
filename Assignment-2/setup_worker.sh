@@ -2,19 +2,21 @@
 
 set -euo pipefail
 
+aws configure set region us-east-1
+
 # Create key pair to connect to instances and save locally
 printf "Creating key pair...\n"
 KEY_NAME="cloud-course-assignment-2-$(date +'%N')"
 KEY_PEM="$KEY_NAME.pem"
 printf "Key name: %s\n" "$KEY_NAME"
-aws ec2 create-key-pair --key-name "$KEY_NAME" | jq -r ".KeyMaterial" > "$KEY_PEM"
+aws ec2 create-key-pair --key-name "$KEY_NAME" --region us-east-1 | jq -r ".KeyMaterial" > "$KEY_PEM"
 chmod 400 "$KEY_PEM"
 
 # Setup firewall
 printf "Setting up firewall...\n"
 SEC_GRP="my-sg-$(date +'%N')"
 printf "Security group name: %s\n" "$SEC_GRP"
-aws ec2 create-security-group --group-name "$SEC_GRP" --description "Access my instances"
+aws ec2 create-security-group --group-name "$SEC_GRP" --description "Access my instances"  --region us-east-1
 
 # Figure out my IP
 MY_IP="$(curl ipinfo.io/ip)"
@@ -36,11 +38,7 @@ INSTANCE_TYPE="t2.micro"
 
 # Create Ubuntu 22.04 instance
 printf "Creating Ubuntu 22.04 instance...\n"
-<<<<<<< HEAD
-RUN_INSTANCES=$(aws ec2 run-instances --image-id "$UBUNTU_22_04_AMI" --instance-type "$INSTANCE_TYPE" --key-name "$KEY_NAME" --security-groups "$SEC_GRP")
-=======
 RUN_INSTANCES=$(aws ec2 run-instances --image-id "$UBUNTU_22_04_AMI" --instance-type "$INSTANCE_TYPE" --instance-initiated-shutdown-behavior terminate --key-name "$KEY_NAME" --security-groups "$SEC_GRP")
->>>>>>> 6dd0e9d6f73d222f70f58029ee30571ab2713f9f
 INSTANCE_ID=$(echo "$RUN_INSTANCES" | jq -r '.Instances[0].InstanceId')
 
 # Wait for instance creation

@@ -13,6 +13,6 @@ IP1="$PUBLIC_IP"
 echo "###Both instances are live###\n"
 
 # Add siblings to each manager
-curl -X POST "http://${IP1}:5000/addSibling?manager=${IP1}"
-#curl -X POST "http://${IP1}:5000/addSibling?manager=${IP2}"
-#curl -X POST "http://${IP2}:5000/addSibling?manager=${IP1}"
+curl -X POST "http://${IP1}:5000/addSibling?manager=${IP1}:5000"
+#curl -X POST "http://${IP1}:5000/addSibling?manager=${IP2}:5000"
+#curl -X POST "http://${IP2}:5000/addSibling?manager=${IP1}:5000"
