@@ -2,6 +2,7 @@ import time
 import sys
 import requests
 import hashlib
+import subprocess
 
 
 class Worker:
@@ -17,6 +18,8 @@ class Worker:
                     start_time = time.time()
                     continue
             time.sleep(0.1)
+        subprocess.call(["sudo", "shutdown", "now"])
+
 
     def DoWork(self, work):
         buffer = work[0]
@@ -53,8 +56,6 @@ class Worker:
     #     thread = Thread(target=worker.loop)
     #     thread.start()
     #     return 'Worker started', 200
-    #
-
 
 if __name__ == '__main__':
     managers = [sys.argv[1], sys.argv[2]]

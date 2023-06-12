@@ -36,7 +36,11 @@ INSTANCE_TYPE="t2.micro"
 
 # Create Ubuntu 22.04 instance
 printf "Creating Ubuntu 22.04 instance...\n"
+<<<<<<< HEAD
 RUN_INSTANCES=$(aws ec2 run-instances --image-id "$UBUNTU_22_04_AMI" --instance-type "$INSTANCE_TYPE" --key-name "$KEY_NAME" --security-groups "$SEC_GRP")
+=======
+RUN_INSTANCES=$(aws ec2 run-instances --image-id "$UBUNTU_22_04_AMI" --instance-type "$INSTANCE_TYPE" --instance-initiated-shutdown-behavior terminate --key-name "$KEY_NAME" --security-groups "$SEC_GRP")
+>>>>>>> 6dd0e9d6f73d222f70f58029ee30571ab2713f9f
 INSTANCE_ID=$(echo "$RUN_INSTANCES" | jq -r '.Instances[0].InstanceId')
 
 # Wait for instance creation
@@ -44,6 +48,7 @@ printf "Waiting for instance creation...\n"
 aws ec2 wait instance-running --instance-ids "$INSTANCE_ID"
 PUBLIC_IP=$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" | jq -r '.Reservations[0].Instances[0].PublicIpAddress')
 printf "New instance %s @ %s\n" "$INSTANCE_ID" "$PUBLIC_IP"
+
 
 # Deploy code to production
 printf "Deploying code to production...\n"
