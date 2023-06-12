@@ -52,11 +52,8 @@ class Manager:
         except subprocess.CalledProcessError as e:
             print(f"Failed to spawn worker: {e}")
 
-    def TryGetNodeQuota(self):
-        if self.numOfWorkers < self.maxNumOfWorkers:
-            self.maxNumOfWorkers -= 1
-            return True
-        return False
+    def TryGetNodeQuota(self, otherManager):
+        return requests.get(f"{otherManager}/TryGetNodeQuota")
 
     def enqueueWork(self, data, iterations):
         self.workQueue.put((data, iterations, datetime.now()))
@@ -109,14 +106,14 @@ def pull_completed():
     return jsonify(results)
 
 
-@app.route('/pullCompleteInternal', methods=['GET'])
+@app.route('/internal/pullCompleteInternal', methods=['GET'])
 def pull_complete_internal():
     top = int(request.args.get('top'))
     results = this_manager.pullCompleteInternal(top)
     return jsonify(results)
 
 
-@app.route('/giveMeWork', methods=['GET'])
+@app.route('/internal/giveMeWork', methods=['GET'])
 def give_me_work():
     work_item = this_manager.giveMeWork()
     if work_item:
@@ -125,20 +122,29 @@ def give_me_work():
         return jsonify({'message': 'No available work'}), 404
 
 
-@app.route('/sendCompletedWork', methods=['POST'])
+@app.route('/internal/sendCompletedWork', methods=['POST'])
 def send_completed_work():
     # Get the completed work from the request
     result = request.get_json()
     this_manager.completed(result)
     return 'Completed work added successfully'
 
+
 @app.route('/addSibling', methods=['POST'])
 def add_sibling():
-    manager = int(request.args.get('manager'))
+    manager = request.args.get('manager')
     this_manager.add_sibling(manager)
     return 'Sibling added successfully'
 
 
+@app.route('/internal/TryGetNodeQuota', methods=['GET'])
+def try_get_node_quota():
+    if this_manager.numOfWorkers < this_manager.maxNumOfWorkers:
+        this_manager.maxNumOfWorkers -= 1
+        return True
+    return False
+
+
 if __name__ == '__main__':
     this_manager.start_timer()
-    app.run()
+    app.run(host='0.0.0.0', port=5000)

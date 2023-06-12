@@ -30,7 +30,7 @@ class Worker:
         print("WorkerDone")
 
     def giveMeWork(self, manager):
-        url = f"http://{manager}/giveMeWork"
+        url = f"http://{manager}/internal/giveMeWork"
         try:
             response = requests.get(url)
             if response.status_code == 200:
@@ -42,7 +42,7 @@ class Worker:
         return None
 
     def completed(self, node, result):
-        url = f"http://{node}/sendCompletedWork"
+        url = f"http://{node}/internal/sendCompletedWork"
         response = requests.post(url, json=result)
         if response.status_code == 200:
             print('Completed work sent successfully')
