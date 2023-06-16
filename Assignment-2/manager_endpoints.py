@@ -1,66 +1,62 @@
 from flask import Flask, request, jsonify
-from threading import Timer
+import threading
 from queue import Queue
 from datetime import datetime, timedelta
 import subprocess
 import requests
 import json
+import time
 
 
 app = Flask(__name__)
-# this_manager = None
+mainThreadFlag = True
 
 
 class Manager:
     def __init__(self):
         self.workQueue = Queue()
         self.workComplete = Queue()
-        self.maxNumOfWorkers = 3
+        self.maxNumOfWorkers = 1
+        # TODO: add workers^^
         self.numOfWorkers = 0
-        self.timer = None
         self.otherManager = None
         self.lastWorkerSpawned = datetime.now()
 
     def add_sibling(self, manager):
         self.otherManager = manager
 
-    def timer_10_sec(self):
-        print("timer tick")
-        if not self.workQueue.empty():
-            work_item = self.workQueue.queue[0]
-            # Check new worker wasn't already spawned in last 3 minutes (average up time)
-            if datetime.now() - self.lastWorkerSpawned > timedelta(seconds=180):
-                # check if work_item wasn't created is in queue for more than 30 seconds
-                # TODO: if datetime.now() - work_item[2] > timedelta(seconds=30):
-                if datetime.now() - work_item[2] > timedelta(seconds=1):
-                    if self.numOfWorkers < self.maxNumOfWorkers:
-                        self.spawnWorker()
-                    else:
-                        if self.otherManager.TryGetNodeQuota():
-                            self.maxNumOfWorkers += 1
+    def check_if_need_more_workers(self):
+        global mainThreadFlag
+        if not mainThreadFlag:
+            print("###########timer tick###########")
+            print(f"Object Status:\n"
+                  f"Current time: {datetime.now()}\n"
+                  f"workQueue size: {self.workQueue.qsize()}\n"
+                  f"workComplete size: {self.workComplete.qsize()}\n"
+                  f"maxNumOfWorkers: {self.maxNumOfWorkers}\n"
+                  f"numOfWorkers: {self.numOfWorkers}\n"
+                  f"lastWorkerSpawned: {self.lastWorkerSpawned}\n"
+                  f"thread: {threading.current_thread()}\n"
+                  f"otherManager: {self.otherManager}")
 
-        # Schedule the next execution of timer_10_sec
-        self.timer = Timer(1, self.timer_10_sec)
-        # TODO: self.timer = Timer(10, self.timer_10_sec)
-        self.timer.start()
-
-    def start_timer(self):
-        print("timer started")
-        # Start the timer initially
-        self.timer = Timer(1, self.timer_10_sec)
-        # TODO: self.timer = Timer(10, self.timer_10_sec)
-        self.timer.start()
-
-    def stop_timer(self):
-        # Stop the timer
-        if self.timer is not None:
-            self.timer.cancel()
+            if not self.workQueue.empty():
+                work_item = self.workQueue.queue[0]
+                # Check new worker wasn't already spawned in last 3 minutes (average up time)
+                if datetime.now() - self.lastWorkerSpawned > timedelta(seconds=180):
+                    # check if work_item wasn't created is in queue for more than 30 seconds
+                    # TODO: if datetime.now() - work_item[2] > timedelta(seconds=30):
+                    if datetime.now() - work_item[2] > timedelta(seconds=1):
+                        if self.numOfWorkers < self.maxNumOfWorkers:
+                            self.spawnWorker()
+                        else:
+                            if self.otherManager.TryGetNodeQuota():
+                                self.maxNumOfWorkers += 1
 
     def spawnWorker(self):
+        self.lastWorkerSpawned = datetime.now()
         try:
-            subprocess.run(['bash', 'setup_worker.sh'], check=True)
-            # print("spawnWorker")
-            self.lastWorkerSpawned = datetime.now()
+            subprocess.run(['bash', 'setup_worker.sh', self.otherManager], check=True)
+            print("spawnWorker")
         except subprocess.CalledProcessError as e:
             print(f"Failed to spawn worker: {e}")
 
@@ -154,6 +150,37 @@ def try_get_node_quota():
     return False
 
 
+def period():
+    global mainThreadFlag
+    mainThreadFlag = False
+    while True:
+        this_manager.check_if_need_more_workers()
+        time.sleep(5)
+
+# def period():
+#     while True:
+#         if not app.config['PERIODIC_CHECK']:
+#             break
+#         this_manager.check_if_need_more_workers()
+#         time.sleep(5)
+
+
 this_manager = Manager()
-this_manager.start_timer()
-app.run(host='0.0.0.0', port=5000, debug=True)
+app_thread = threading.Thread(target=period)
+app_thread.start()
+
+if __name__ == '__main__':
+    if threading.current_thread() == threading.main_thread():
+        app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
+
+# if __name__ == '__main__':
+#     this_manager = Manager()
+#     app.config['PERIODIC_CHECK'] = True
+#     app_thread = threading.Thread(target=period)
+#     app_thread.start()
+#     app.run(host='0.0.0.0', port=5000, debug=True)
+
+
+
+
+

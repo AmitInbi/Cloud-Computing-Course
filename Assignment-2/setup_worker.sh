@@ -50,8 +50,8 @@ printf "New instance %s @ %s\n" "$INSTANCE_ID" "$PUBLIC_IP"
 
 # Deploy code to production
 printf "Deploying code to production...\n"
-APP_FILE="worker-endpoints.py"
-scp -i $KEY_PEM -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=60" worker-endpoints.py ubuntu@$PUBLIC_IP:/home/ubuntu/
+APP_FILE="worker_endpoints.py"
+scp -i $KEY_PEM -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=60" worker_endpoints.py ubuntu@$PUBLIC_IP:/home/ubuntu/
 
 
 # SSH into the instance and run the necessary commands  to deploy the app
@@ -62,7 +62,8 @@ ssh -T -i "$KEY_PEM" -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=10" ub
     sudo apt install python3-pip -y
     sudo pip install Flask
     export FLASK_APP=$APP_FILE
-    nohup flask run --host 0.0.0.0  &>/dev/null &
+    nohup flask run --host 0.0.0.0 --port=5000 --MY_IP="$MY_IP" --OTHER_IP="$1"  &>/dev/null &
+    echo 'worker successfully installed'
     exit
 EOF
 

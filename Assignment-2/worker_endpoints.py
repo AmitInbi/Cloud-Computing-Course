@@ -3,6 +3,7 @@ import sys
 import requests
 import hashlib
 import subprocess
+import os
 
 
 class Worker:
@@ -19,7 +20,6 @@ class Worker:
                     continue
             time.sleep(0.1)
         subprocess.call(["sudo", "shutdown", "now"])
-
 
     def DoWork(self, work):
         buffer = work[0]
@@ -58,7 +58,11 @@ class Worker:
     #     return 'Worker started', 200
 
 
-if __name__ == '__main__':
-    managers = [sys.argv[1], sys.argv[2]]
-    worker = Worker()
-    worker.loop()
+# if __name__ == '__main__':
+
+my_ip = os.environ.get('MY_IP')
+sibling_ip = os.environ.get('OTHER_IP')
+
+managers = [my_ip, sibling_ip]
+worker = Worker()
+worker.loop(managers)

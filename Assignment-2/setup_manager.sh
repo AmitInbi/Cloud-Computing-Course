@@ -119,8 +119,9 @@ ssh -T -i "$KEY_PEM" -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=10" ub
 
     sudo pip install Flask
     export FLASK_APP=$APP_FILE
-    nohup flask run --host=0.0.0.0 --port=5000
+
 EOF
 
 #    TODO: nohup flask run --host=0.0.0.0 --port=5000  &>/dev/null &
+#    TODO: nohup flask run --host=0.0.0.0 --port=5000
 #    exit
