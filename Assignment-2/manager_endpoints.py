@@ -174,8 +174,6 @@ def try_get_node_quota():
 
 
 def period():
-    print("Period!###############################")
-
     global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
     global mainThreadFlag
     while True:

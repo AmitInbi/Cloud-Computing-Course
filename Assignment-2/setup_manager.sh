@@ -101,6 +101,7 @@ printf "New instance %s @ %s\n" "$INSTANCE_ID" "$PUBLIC_IP"
 printf "Deploying code to production...\n"
 APP_FILE="manager_endpoints.py"
 # scp -i $KEY_PEM -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=60" ./ ubuntu@$PUBLIC_IP:/home/ubuntu/
+tr -d '\r' < setup_worker.sh > setup_worker_temp.sh && mv setup_worker_temp.sh setup_worker.sh
 scp -i $KEY_PEM -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=60" manager_endpoints.py setup_worker.sh worker_endpoints.py ubuntu@$PUBLIC_IP:/home/ubuntu/
 
 
