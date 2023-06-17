@@ -1,12 +1,11 @@
 from flask import Flask, request, jsonify
-import threading
 from queue import Queue
 from datetime import datetime, timedelta
 import subprocess
 import requests
 import json
+import threading
 import time
-
 
 app = Flask(__name__)
 
@@ -105,6 +104,16 @@ def pullCompleteInternal(top):
     return result
 
 
+def period():
+    print("Period!###############################")
+
+    global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
+    global mainThreadFlag
+    while True:
+        check_if_need_more_workers()
+        time.sleep(5)
+
+
 @app.route('/enqueue', methods=['PUT'])
 def enqueue():
     global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
@@ -157,7 +166,11 @@ def send_completed_work():
 @app.route('/addSibling', methods=['POST'])
 def add_sibling():
     global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
-
+    # ############################################
+    app_thread = threading.Thread(target=period)
+    app_thread.start()
+    # ###########################################
+    # TODO: this is a patch ^
     manager = request.args.get('manager')
     otherManager = manager
     return 'Sibling added successfully'
@@ -173,16 +186,5 @@ def try_get_node_quota():
     return False
 
 
-def period():
-    print("Period!###############################")
-
-    global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
-    global mainThreadFlag
-    while True:
-        check_if_need_more_workers()
-        time.sleep(5)
-
-
-app_thread = threading.Thread(target=period)
-app_thread.start()
-app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
