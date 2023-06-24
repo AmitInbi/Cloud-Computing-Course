@@ -18,9 +18,15 @@ numOfWorkers = 0
 otherManager = None
 lastWorkerSpawned = datetime.now()
 
+workQueueLock = threading.Lock()
+workCompleteLock = threading.Lock()
+numOfWorkersLock = threading.Lock()
+maxNumOfWorkersLock = threading.Lock()
+
 
 def check_if_need_more_workers():
-    global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
+    global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, \
+        lastWorkerSpawned, workQueueLock, workCompleteLock, numOfWorkersLock, maxNumOfWorkersLock
     print("###########timer tick###########")
     print(f"Object Status:\n"
           f"Current time: {datetime.now()}\n"
@@ -39,52 +45,60 @@ def check_if_need_more_workers():
             # check if work_item wasn't created is in queue for more than 30 seconds
             # TODO: if datetime.now() - work_item[2] > timedelta(seconds=30):
             if datetime.now() - work_item[2] > timedelta(seconds=1):
-                if numOfWorkers < maxNumOfWorkers:
-                    spawnWorker()
-                else:
-                    if otherManager.TryGetNodeQuota():
-                        maxNumOfWorkers += 1
+                with numOfWorkersLock:
+                    if numOfWorkers <= maxNumOfWorkers:
+                        spawnWorker()
+                    else:
+                        if TryGetNodeQuota():
+                            with maxNumOfWorkersLock:
+                                maxNumOfWorkers += 1
 
 
 def spawnWorker():
-    global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
+    global numOfWorkers, otherManager, lastWorkerSpawned
     lastWorkerSpawned = datetime.now()
     try:
+        numOfWorkers += 1
         subprocess.run(['bash', 'setup_worker.sh', otherManager], check=True)
         print("spawnWorker")
     except subprocess.CalledProcessError as e:
         print(f"Failed to spawn worker: {e}")
 
 
-def TryGetNodeQuota(otherManager):
-    global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, lastWorkerSpawned
-    return requests.get(f"{otherManager}/TryGetNodeQuota")
+def TryGetNodeQuota():
+    global otherManager
+    # TODO: Uncomment this \/
+    # return requests.get(f"{otherManager}/TryGetNodeQuota")
+    return False
 
 
 def enqueueWork(data, iterations):
-    global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
-    workQueue.put((data, iterations, datetime.now()))
+    global workQueue, workQueueLock
+    with workQueueLock:
+        workQueue.put((data, iterations, datetime.now()))
 
 
 def giveMeWork():
-    global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
-    return workQueue.get() or None
+    global workQueue, workQueueLock
+    with workQueueLock:
+        return workQueue.get() or None
 
 
 def completed(result):
-    global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
-    workComplete.put(result)
+    global workComplete, workCompleteLock
+    with workCompleteLock:
+        workComplete.put(result)
 
 
 def pullComplete(top):
-    global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
-
+    global workComplete, otherManager, workCompleteLock
     result = []
-    for i in range(top):
-        if not workComplete.empty():
-            result.append(workComplete.get())
-        else:
-            break
+    with workCompleteLock:
+        for i in range(top):
+            if not workComplete.empty():
+                result.append(workComplete.get())
+            else:
+                break
     if len(result) < top:
         missing_completed = str(top - len(result))
         url = f"http://{otherManager}/pullCompleteInternal?top={missing_completed}"
@@ -94,21 +108,19 @@ def pullComplete(top):
 
 
 def pullCompleteInternal(top):
-    global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
-
+    global workComplete, workCompleteLock
     result = []
-    for i in range(top):
-        if not workComplete.empty():
-            result.append(workComplete.get())
-        else:
-            break
+    with workCompleteLock:
+        for i in range(top):
+            if not workComplete.empty():
+                result.append(workComplete.get())
+            else:
+                break
     return result
 
 
 @app.route('/enqueue', methods=['PUT'])
 def enqueue():
-    global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
-
     iterations = int(request.args.get('iterations'))
     data = request.get_data(as_text=True)
     enqueueWork(data, iterations)
@@ -117,8 +129,6 @@ def enqueue():
 
 @app.route('/pullCompleted', methods=['POST'])
 def pull_completed():
-    global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
-
     top = int(request.args.get('top'))
     results = pullComplete(top)
     return jsonify(results)
@@ -126,8 +136,6 @@ def pull_completed():
 
 @app.route('/internal/pullCompleteInternal', methods=['GET'])
 def pull_complete_internal():
-    global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
-
     top = int(request.args.get('top'))
     results = pullCompleteInternal(top)
     return jsonify(results)
@@ -135,8 +143,6 @@ def pull_complete_internal():
 
 @app.route('/internal/giveMeWork', methods=['GET'])
 def give_me_work():
-    global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
-
     work_item = giveMeWork()
     if work_item:
         return jsonify(work_item), 200
@@ -146,9 +152,6 @@ def give_me_work():
 
 @app.route('/internal/sendCompletedWork', methods=['POST'])
 def send_completed_work():
-    global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
-
-    # Get the completed work from the request
     result = request.get_json()
     completed(result)
     return 'Completed work added successfully'
@@ -156,31 +159,34 @@ def send_completed_work():
 
 @app.route('/addSibling', methods=['POST'])
 def add_sibling():
-    global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
-
-    manager = request.args.get('manager')
-    otherManager = manager
+    global otherManager
+    otherManager = request.args.get('manager')
     return 'Sibling added successfully'
 
 
 @app.route('/internal/TryGetNodeQuota', methods=['GET'])
 def try_get_node_quota():
-    global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
-
-    if numOfWorkers < maxNumOfWorkers:
-        maxNumOfWorkers -= 1
-        return True
+    global numOfWorkers, maxNumOfWorkers, numOfWorkersLock, maxNumOfWorkersLock
+    with numOfWorkersLock:
+        if numOfWorkers < maxNumOfWorkers:
+            with maxNumOfWorkersLock:
+                maxNumOfWorkers -= 1
+            return True
     return False
 
 
-def period():
-    global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, lastWorkerSpawned
-    global mainThreadFlag
+@app.route('/startPeriodicCheckThread', methods=['GET'])
+def start_periodic_check_thread():
+    worker_thread = threading.Thread(target=periodic_check)
+    worker_thread.start()
+
+    return "Worker Thread Started"
+
+
+def periodic_check():
     while True:
         check_if_need_more_workers()
         time.sleep(5)
 
 
-app_thread = threading.Thread(target=period)
-app_thread.start()
 app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)

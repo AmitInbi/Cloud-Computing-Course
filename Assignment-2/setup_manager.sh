@@ -125,4 +125,9 @@ EOF
 
 #    TODO: nohup flask run --host=0.0.0.0 --port=5000  &>/dev/null &
 #    TODO: nohup flask run --host=0.0.0.0 --port=5000
+
+#export APP_FILE="manager_endpoints.py"
+#export FLASK_APP=$APP_FILE
+#flask run --host=0.0.0.0 --port=5000
+
 #    exit
