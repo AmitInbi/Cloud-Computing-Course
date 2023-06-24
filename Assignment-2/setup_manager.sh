@@ -80,7 +80,7 @@ aws iam create-instance-profile --instance-profile-name "$INSTANCE_PROFILE_NAME"
 aws iam add-role-to-instance-profile --role-name "$ROLE_NAME" --instance-profile-name "$INSTANCE_PROFILE_NAME"
 
 # Wait for the instance profile to be created
-sleep 3
+sleep 5
 
 # Remove the "role/" prefix from the ARN to form the instance profile ARN
 INSTANCE_PROFILE_ARN=$(aws iam get-instance-profile --instance-profile-name "$INSTANCE_PROFILE_NAME" --query "InstanceProfile.Arn" --output text)
@@ -102,7 +102,7 @@ printf "Deploying code to production...\n"
 APP_FILE="manager_endpoints.py"
 # scp -i $KEY_PEM -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=60" ./ ubuntu@$PUBLIC_IP:/home/ubuntu/
 tr -d '\r' < setup_worker.sh > setup_worker_temp.sh && mv setup_worker_temp.sh setup_worker.sh
-scp -i $KEY_PEM -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=60" manager_endpoints.py setup_worker.sh worker_endpoints.py ubuntu@$PUBLIC_IP:/home/ubuntu/
+scp -i $KEY_PEM -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=60" manager_endpoints.py setup_worker.sh worker.py ubuntu@$PUBLIC_IP:/home/ubuntu/
 
 
 # SSH into the instance and run the necessary commands  to deploy the app
@@ -120,7 +120,7 @@ ssh -T -i "$KEY_PEM" -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=10" ub
 
     sudo pip install Flask
     export FLASK_APP=$APP_FILE
-
+    nohup flask run --host=0.0.0.0 --port=5000  &>/dev/null &
 EOF
 
 #    TODO: nohup flask run --host=0.0.0.0 --port=5000  &>/dev/null &

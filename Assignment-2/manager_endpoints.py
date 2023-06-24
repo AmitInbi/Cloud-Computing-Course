@@ -114,7 +114,8 @@ def pullComplete(top):
         missing_completed = str(top - len(result))
         url = f"http://{otherManager}/pullCompleteInternal?top={missing_completed}"
         response = requests.get(url)
-        result.append(json.loads(response))
+        if response.status_code == 200:
+            result.extend(response.json())
     return result
 
 
@@ -123,7 +124,8 @@ def pullCompleteInternal(top):
     result = []
     for i in range(top):
         if not workComplete.empty():
-            result.append(workComplete.get())
+            encoded_work_completed = base64.b64encode(str(workComplete.get()).encode('utf-8')).decode('utf-8')
+            result.append(encoded_work_completed)
         else:
             break
     return result

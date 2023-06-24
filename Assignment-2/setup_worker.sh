@@ -50,7 +50,7 @@ printf "New instance %s @ %s\n" "$INSTANCE_ID" "$PUBLIC_IP"
 
 # Deploy code to production
 printf "Deploying code to production...\n"
-APP_FILE="worker_endpoints.py"
+APP_FILE="worker.py"
 scp -i $KEY_PEM -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=60" worker.py ubuntu@$PUBLIC_IP:/home/ubuntu/
 
 
@@ -64,7 +64,10 @@ ssh -T -i "$KEY_PEM" -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=10" ub
     export FLASK_APP=$APP_FILE
 
     echo 'worker successfully installed'
+    flask run --host 0.0.0.0 --port=5000 --MY_IP="$MY_IP:5000" --OTHER_IP="$1"  &>/dev/null &
 EOF
+
+echo "Worker Live at: $PUBLIC_IP."
 
 # TODO: uncomment this into ssh
 #    nohup flask run --host 0.0.0.0 --port=5000 --MY_IP="$MY_IP:5000" --OTHER_IP="$1"  &>/dev/null &
