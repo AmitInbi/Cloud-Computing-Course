@@ -6,9 +6,12 @@ import subprocess
 import requests
 import json
 import time
-
+import logging
 
 app = Flask(__name__)
+
+# Configure logging
+logging.basicConfig(filename='manager.log', level=logging.INFO)
 
 workQueue = Queue()
 workComplete = Queue()
@@ -18,25 +21,20 @@ numOfWorkers = 0
 otherManager = None
 lastWorkerSpawned = datetime.now()
 
-workQueueLock = threading.Lock()
-workCompleteLock = threading.Lock()
-numOfWorkersLock = threading.Lock()
-maxNumOfWorkersLock = threading.Lock()
-
 
 def check_if_need_more_workers():
     global workQueue, workComplete, maxNumOfWorkers, numOfWorkers, otherManager, \
-        lastWorkerSpawned, workQueueLock, workCompleteLock, numOfWorkersLock, maxNumOfWorkersLock
-    print("###########timer tick###########")
-    print(f"Object Status:\n"
-          f"Current time: {datetime.now()}\n"
-          f"workQueue size: {workQueue.qsize()}\n"
-          f"workComplete size: {workComplete.qsize()}\n"
-          f"maxNumOfWorkers: {maxNumOfWorkers}\n"
-          f"numOfWorkers: {numOfWorkers}\n"
-          f"lastWorkerSpawned: {lastWorkerSpawned}\n"
-          f"thread: {threading.current_thread()}\n"
-          f"otherManager: {otherManager}")
+        lastWorkerSpawned
+    logging.info("###########timer tick###########")
+    logging.info(f"Object Status:\n"
+                 f"Current time: {datetime.now()}\n"
+                 f"workQueue size: {workQueue.qsize()}\n"
+                 f"workComplete size: {workComplete.qsize()}\n"
+                 f"maxNumOfWorkers: {maxNumOfWorkers}\n"
+                 f"numOfWorkers: {numOfWorkers}\n"
+                 f"lastWorkerSpawned: {lastWorkerSpawned}\n"
+                 f"thread: {threading.current_thread()}\n"
+                 f"otherManager: {otherManager}")
 
     if not workQueue.empty():
         work_item = workQueue.queue[0]
@@ -45,13 +43,13 @@ def check_if_need_more_workers():
             # check if work_item wasn't created is in queue for more than 30 seconds
             # TODO: if datetime.now() - work_item[2] > timedelta(seconds=30):
             if datetime.now() - work_item[2] > timedelta(seconds=1):
-                with numOfWorkersLock:
-                    if numOfWorkers <= maxNumOfWorkers:
-                        spawnWorker()
-                    else:
-                        if TryGetNodeQuota():
-                            with maxNumOfWorkersLock:
-                                maxNumOfWorkers += 1
+                if numOfWorkers <= maxNumOfWorkers:
+                    logging.info("Spawning a new worker")
+                    spawnWorker()
+                else:
+                    if TryGetNodeQuota():
+                        maxNumOfWorkers += 1
+                        logging.info("Incrementing maxNumOfWorkers")
 
 
 def spawnWorker():
@@ -60,9 +58,9 @@ def spawnWorker():
     try:
         numOfWorkers += 1
         subprocess.run(['bash', 'setup_worker.sh', otherManager], check=True)
-        print("spawnWorker")
+        logging.info("Worker spawned successfully")
     except subprocess.CalledProcessError as e:
-        print(f"Failed to spawn worker: {e}")
+        logging.error(f"Failed to spawn worker: {e}")
 
 
 def TryGetNodeQuota():
@@ -73,32 +71,36 @@ def TryGetNodeQuota():
 
 
 def enqueueWork(data, iterations):
-    global workQueue, workQueueLock
-    with workQueueLock:
-        workQueue.put((data, iterations, datetime.now()))
+    global workQueue
+    workQueue.put((data, iterations, datetime.now()))
+    logging.info("Work enqueued successfully")
 
 
 def giveMeWork():
-    global workQueue, workQueueLock
-    with workQueueLock:
-        return workQueue.get() or None
+    global workQueue
+    work_item = workQueue.get()
+    if work_item:
+        logging.info("Work dequeued successfully")
+        return work_item
+    else:
+        logging.info("No available work in the queue")
+        return None
 
 
 def completed(result):
-    global workComplete, workCompleteLock
-    with workCompleteLock:
-        workComplete.put(result)
+    global workComplete
+    workComplete.put(result)
+    logging.info("Work completed and added to the completed queue")
 
 
 def pullComplete(top):
-    global workComplete, otherManager, workCompleteLock
+    global workComplete, otherManager
     result = []
-    with workCompleteLock:
-        for i in range(top):
-            if not workComplete.empty():
-                result.append(workComplete.get())
-            else:
-                break
+    for i in range(top):
+        if not workComplete.empty():
+            result.append(workComplete.get())
+        else:
+            break
     if len(result) < top:
         missing_completed = str(top - len(result))
         url = f"http://{otherManager}/pullCompleteInternal?top={missing_completed}"
@@ -108,14 +110,13 @@ def pullComplete(top):
 
 
 def pullCompleteInternal(top):
-    global workComplete, workCompleteLock
+    global workComplete
     result = []
-    with workCompleteLock:
-        for i in range(top):
-            if not workComplete.empty():
-                result.append(workComplete.get())
-            else:
-                break
+    for i in range(top):
+        if not workComplete.empty():
+            result.append(workComplete.get())
+        else:
+            break
     return result
 
 
@@ -166,12 +167,10 @@ def add_sibling():
 
 @app.route('/internal/TryGetNodeQuota', methods=['GET'])
 def try_get_node_quota():
-    global numOfWorkers, maxNumOfWorkers, numOfWorkersLock, maxNumOfWorkersLock
-    with numOfWorkersLock:
-        if numOfWorkers < maxNumOfWorkers:
-            with maxNumOfWorkersLock:
-                maxNumOfWorkers -= 1
-            return True
+    global numOfWorkers, maxNumOfWorkers
+    if numOfWorkers < maxNumOfWorkers:
+        maxNumOfWorkers -= 1
+        return True
     return False
 
 
