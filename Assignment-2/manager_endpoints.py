@@ -1,6 +1,8 @@
+import base64
+
 from flask import Flask, request, jsonify
 import threading
-from queue import Queue
+from queue import Queue, Empty
 from datetime import datetime, timedelta
 import subprocess
 import requests
@@ -78,10 +80,17 @@ def enqueueWork(data, iterations):
 
 def giveMeWork():
     global workQueue
-    work_item = workQueue.get()
+    logging.info("giveMeWork")
+    try:
+        work_item = workQueue.get_nowait()
+    except Empty:
+        work_item = None
     if work_item:
         logging.info("Work dequeued successfully")
+        # buffer = work_item[0]
+        # iterations = work_item[1]
         return work_item
+        # return buffer, iterations
     else:
         logging.info("No available work in the queue")
         return None
@@ -123,7 +132,7 @@ def pullCompleteInternal(top):
 @app.route('/enqueue', methods=['PUT'])
 def enqueue():
     iterations = int(request.args.get('iterations'))
-    data = request.get_data(as_text=True)
+    data = request.get_data()
     enqueueWork(data, iterations)
     return 'Work enqueued successfully'
 
@@ -146,15 +155,18 @@ def pull_complete_internal():
 def give_me_work():
     work_item = giveMeWork()
     if work_item:
-        return jsonify(work_item), 200
+        work_list = list(work_item[:2])  # Convert tuple to list
+        encoded_data = base64.b64encode(str(work_list).encode('utf-8')).decode('utf-8')
+        return encoded_data, 200
     else:
-        return jsonify({'message': 'No available work'}), 404
+        return {'message': 'No available work'}, 404
 
 
 @app.route('/internal/sendCompletedWork', methods=['POST'])
 def send_completed_work():
     result = request.get_json()
-    completed(result)
+    decoded_result = base64.b64decode(result).decode('utf-8')  # Decode the base64 and convert to string
+    completed(decoded_result)
     return 'Completed work added successfully'
 
 
@@ -188,4 +200,5 @@ def periodic_check():
         time.sleep(5)
 
 
-app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
