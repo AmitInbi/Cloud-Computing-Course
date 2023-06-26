@@ -54,10 +54,7 @@ POLICY_DOCUMENT='{
         "ec2:Wait",
         "ec2:DescribeInstanceStatus",
         "ec2:DescribeInstanceAttribute",
-        "ec2:DescribeKeyPairs",
-        "ec2:DescribeSecurityGroups",
-        "ec2:TerminateInstances",
-        "ec2:DeleteSecurityGroup"
+        "ec2:DescribeKeyPairs"
       ],
       "Resource": "*"
     }
@@ -107,18 +104,17 @@ scp -i $KEY_PEM -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=60" manager
 
 # SSH into the instance and run the necessary commands  to deploy the app
 printf "\n"
-printf "########Running this command: ssh -T -i $KEY_PEM ubuntu@$PUBLIC_IP########\n"
+printf "########Running this command: ssh -T -i %s ubuntu@%s########\n", "$KEY_PEM", "$PUBLIC_IP"
 ssh -T -i "$KEY_PEM" -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=10" ubuntu@"$PUBLIC_IP" << EOF
     sudo apt update
-    sudo apt install python3-pip -y
-
+    sudo apt install python3-pip -y > /dev/null
     wget https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 -O jq
     chmod +x jq
     sudo mv jq /usr/local/bin
+    sudo pip3 install awscli  > /dev/null
+    sudo pip install Flask  > /dev/null
+    echo "landscape set up correctly"
 
-    sudo pip3 install awscli
-
-    sudo pip install Flask
     export FLASK_APP=$APP_FILE
     nohup flask run --host=0.0.0.0 --port=5000  &>/dev/null &
 EOF

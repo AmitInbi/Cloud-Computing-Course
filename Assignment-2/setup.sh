@@ -13,15 +13,13 @@ IP2="$PUBLIC_IP"
 echo "IP2:$IP2"
 
 # Add siblings to each manager
-  #curl -X POST "http://${IP1}:5000/addSibling?manager=${IP1}:5000"
-# TODO: Uncomment this \/
-curl -X POST "http://${IP1}:5000/addSibling?manager=${IP2}:5000"
-curl -X POST "http://${IP2}:5000/addSibling?manager=${IP1}:5000"
-#
-#
+curl --retry 3 -X POST "http://${IP1}:5000/addSibling?manager=${IP2}"
+curl --retry 3 -X POST "http://${IP2}:5000/addSibling?manager=${IP1}"
+
+
 ## Start worker scan Thread
-curl -X GET "http://${IP1}:5000/startPeriodicCheckThread"
-curl -X GET "http://${IP2}:5000/startPeriodicCheckThread"
+curl --retry 3 -X GET "http://${IP1}:5000/startPeriodicCheckThread"
+curl --retry 3 -X GET "http://${IP2}:5000/startPeriodicCheckThread"
 
 echo "###Both instances are live###"
 echo "IP1:$IP1"

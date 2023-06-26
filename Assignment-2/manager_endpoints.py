@@ -59,7 +59,11 @@ def spawnWorker():
     lastWorkerSpawned = datetime.now()
     try:
         numOfWorkers += 1
-        subprocess.run(['bash', 'setup_worker.sh', otherManager], check=True)
+        # subprocess.call(['setup_worker.sh', otherManager], check=True)
+        log_file = f"spawnWorker_{datetime.now().strftime('%Y-%m-%d_%H:%M:%S')}.log"
+        with open(log_file, 'w') as f:
+            logging.info("Running setup_worker.sh")
+            subprocess.call(['/home/ubuntu/setup_worker.sh', otherManager], stdout=f, stderr=subprocess.STDOUT)
         logging.info("Worker spawned successfully")
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to spawn worker: {e}")
@@ -67,9 +71,7 @@ def spawnWorker():
 
 def TryGetNodeQuota():
     global otherManager
-    # TODO: Uncomment this \/
-    # return requests.get(f"{otherManager}/TryGetNodeQuota")
-    return False
+    return requests.get(f"{otherManager}/internal/TryGetNodeQuota")
 
 
 def enqueueWork(data, iterations):
@@ -112,7 +114,7 @@ def pullComplete(top):
             break
     if len(result) < top:
         missing_completed = str(top - len(result))
-        url = f"http://{otherManager}/pullCompleteInternal?top={missing_completed}"
+        url = f"http://{otherManager}/internal/pullCompleteInternal?top={missing_completed}"
         response = requests.get(url)
         if response.status_code == 200:
             result.extend(response.json())
@@ -172,13 +174,6 @@ def send_completed_work():
     return 'Completed work added successfully'
 
 
-@app.route('/addSibling', methods=['POST'])
-def add_sibling():
-    global otherManager
-    otherManager = request.args.get('manager')
-    return 'Sibling added successfully'
-
-
 @app.route('/internal/TryGetNodeQuota', methods=['GET'])
 def try_get_node_quota():
     global numOfWorkers, maxNumOfWorkers
@@ -186,6 +181,14 @@ def try_get_node_quota():
         maxNumOfWorkers -= 1
         return True
     return False
+
+
+@app.route('/addSibling', methods=['POST'])
+def add_sibling():
+    global otherManager
+    other_manager_ip = request.args.get('manager')
+    otherManager = f"{other_manager_ip}:5000"
+    return 'Sibling added successfully'
 
 
 @app.route('/startPeriodicCheckThread', methods=['GET'])

@@ -80,13 +80,13 @@ def send_completed_work(manager, result):
         logging.error(f"Failed to send completed work to {manager}. Status code: {response.status_code}")
 
 
-# my_ip = os.environ.get('MY_IP')
-# sibling_ip = os.environ.get('OTHER_IP')
-#
-# managers = [my_ip, sibling_ip]
-# perform_work(managers)
-
 my_ip = os.environ.get('MY_IP')
+sibling_ip = os.environ.get('OTHER_IP')
 
-managers = [my_ip]
+managers = [my_ip, sibling_ip]
 perform_work(managers)
+
+# my_ip = os.environ.get('MY_IP')
+#
+# managers = [my_ip]
+# perform_work(managers)

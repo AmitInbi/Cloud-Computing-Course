@@ -60,11 +60,10 @@ printf "########Running this command: ssh -T -i $KEY_PEM ubuntu@$PUBLIC_IP######
 ssh -T -i "$KEY_PEM" -o "StrictHostKeyChecking=no" -o "ConnectionAttempts=10" ubuntu@"$PUBLIC_IP" << EOF
     sudo apt update
     sudo apt install python3-pip -y
-    sudo pip install Flask
-    export FLASK_APP=$APP_FILE
 
-    echo 'worker successfully installed'
-    flask run --host 0.0.0.0 --port=5000 --MY_IP="$MY_IP:5000" --OTHER_IP="$1"  &>/dev/null &
+    export MY_IP="$MY_IP:5000"
+    export OTHER_IP="$1"
+    python3 -u worker.py &>/dev/null &
 EOF
 
 echo "Worker Live at: $PUBLIC_IP."
@@ -72,3 +71,8 @@ echo "Worker Live at: $PUBLIC_IP."
 # TODO: uncomment this into ssh
 #    nohup flask run --host 0.0.0.0 --port=5000 --MY_IP="$MY_IP:5000" --OTHER_IP="$1"  &>/dev/null &
 #    exit
+#export FLASK_APP="worker.py"
+#export MY_IP="$MY_IP:5000"
+#export OTHER_IP="$1"
+#flask run --host 0.0.0.0 --port=5000 --MY_IP="$MY_IP:5000" --OTHER_IP="$1"  &>/dev/null &
+
