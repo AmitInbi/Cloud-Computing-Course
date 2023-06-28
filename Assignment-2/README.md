@@ -35,5 +35,5 @@ additionally, ensure you have jq installed.
 Run `./setup.sh`  in the root of the project (Assignment-2)
 The IP endpoints will be printed with  
 `echo "###Both instances are live###"`  
-`echo "IP1:$IP1"`  
-`echo "IP2:$IP2"`  
+`echo "IP1:$IP1:5000"`  
+`echo "IP2:$IP2:5000"`  
