@@ -17,8 +17,7 @@ logging.basicConfig(filename='manager.log', level=logging.INFO)
 
 workQueue = Queue()
 workComplete = Queue()
-maxNumOfWorkers = 1
-# TODO: add workers^^
+maxNumOfWorkers = 3
 numOfWorkers = 0
 otherManager = None
 lastWorkerSpawned = datetime.now()

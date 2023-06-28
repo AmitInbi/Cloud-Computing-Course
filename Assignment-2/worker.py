@@ -27,8 +27,7 @@ def perform_work(managers):
             else:
                 logging.info(f"Not found work from: {manager}")
         time.sleep(5)
-    # TODO: Uncomment this \/
-    # subprocess.call(["sudo", "shutdown", "now"])
+    subprocess.call(["sudo", "shutdown", "now"])
 
 
 def DoWork(work):
@@ -86,7 +85,4 @@ sibling_ip = os.environ.get('OTHER_IP')
 managers = [my_ip, sibling_ip]
 perform_work(managers)
 
-# my_ip = os.environ.get('MY_IP')
-#
-# managers = [my_ip]
-# perform_work(managers)
+
